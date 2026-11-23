@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from storage import seed_concepts, list_videos
 from limits import enforce_chat_limit
 from exercises import list_exercises, get_exercise
+from evaluation import evaluate_eighth_notes
 
 app = FastAPI(title="Musicaiman API", version="0.1.0")
 origins = [s.strip() for s in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if s.strip()]
@@ -93,3 +94,20 @@ def exercise(exercise_id: str):
     if item is None:
         raise HTTPException(404, "Exercise not found")
     return item
+
+
+class RhythmAttempt(BaseModel):
+    onsets_seconds: list[float] = Field(min_length=1, max_length=1536)
+
+
+@app.post("/api/v1/exercises/{exercise_id}/evaluate")
+def evaluate_exercise(exercise_id: str, attempt: RhythmAttempt):
+    item = get_exercise(exercise_id)
+    if item is None:
+        raise HTTPException(404, "Exercise not found")
+    if exercise_id not in {"steady-eighths", "muted-eighths"}:
+        raise HTTPException(422, "Timing evaluator not available for this pattern")
+    try:
+        return {"exercise_id": exercise_id, **evaluate_eighth_notes(attempt.onsets_seconds, item["bpm"], item["bars"], item["beats_per_bar"])}
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
