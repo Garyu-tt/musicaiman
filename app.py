@@ -10,6 +10,7 @@ from storage import seed_concepts, list_videos
 from limits import enforce_chat_limit
 from exercises import list_exercises, get_exercise
 from evaluation import evaluate_eighth_notes
+from backing import BackingTrackSpec, providers
 from personal_api import router as personal_router
 
 app = FastAPI(title="Musicaiman API", version="0.2.0")
@@ -113,3 +114,13 @@ def evaluate_exercise(exercise_id: str, attempt: RhythmAttempt):
         return {"exercise_id": exercise_id, **evaluate_eighth_notes(attempt.onsets_seconds, item["bpm"], item["bars"], item["beats_per_bar"])}
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
+
+
+@app.get("/api/v1/backing/providers")
+def backing_providers():
+    return providers()
+
+
+@app.post("/api/v1/backing/spec")
+def backing_spec(spec: BackingTrackSpec):
+    return {"spec": spec.model_dump(), "generated": False, "audio_url": None}
