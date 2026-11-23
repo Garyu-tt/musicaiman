@@ -6,6 +6,7 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from storage import seed_concepts, list_videos
 
 app = FastAPI(title="Musicaiman API", version="0.1.0")
 origins = [s.strip() for s in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if s.strip()]
@@ -19,8 +20,8 @@ CONCEPTS = [
     {"id": "downpicking", "title": "Даунпикинг", "prerequisites": ["alternate-picking"], "keywords": ["даунпикинг", "downpicking", "удары вниз"], "explanation": "Играй все атаки вниз с расслабленной кистью. Скорость повышай только после устойчивого ритма."},
     {"id": "gallop", "title": "Галоп и металкор-ритмы", "prerequisites": ["alternate-picking", "palm-mute"], "keywords": ["галоп", "металкор", "ритм", "gallop"], "explanation": "Отрабатывай рисунок длинная-короткая-короткая под метроном, затем соединяй с palm mute."},
 ]
-# Curated video links can be added only after their IDs, relevance and availability are checked.
-VIDEOS = []
+# Curated video links live in SQLite, never in unreviewed generated content.
+seed_concepts(CONCEPTS)
 
 class Message(BaseModel):
     role: Literal["user", "assistant"]
@@ -50,7 +51,7 @@ def health():
 
 @app.get("/api/v1/graph")
 def graph():
-    return {"concepts": CONCEPTS, "edges": [{"source": p, "target": c["id"], "type": "prerequisite"} for c in CONCEPTS for p in c["prerequisites"]], "videos": VIDEOS}
+    return {"concepts": CONCEPTS, "edges": [{"source": p, "target": c["id"], "type": "prerequisite"} for c in CONCEPTS for p in c["prerequisites"]], "videos": list_videos()}
 
 
 @app.get("/api/v1/concepts/{concept_id}")
@@ -58,7 +59,7 @@ def concept(concept_id: str):
     item = next((c for c in CONCEPTS if c["id"] == concept_id), None)
     if item is None:
         raise HTTPException(404, "Concept not found")
-    return {**item, "videos": [v for v in VIDEOS if concept_id in v.get("concept_ids", [])]}
+    return {**item, "videos": list_videos(concept_id)}
 
 
 @app.post("/api/v1/chat")
@@ -76,4 +77,4 @@ async def chat(request: ChatRequest):
                 answer = response.json()["choices"][0]["message"]["content"]
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
             pass
-    return {"answer": answer, "concepts": matches, "videos": [v for v in VIDEOS if any(c["id"] in v.get("concept_ids", []) for c in matches)]}
+    return {"answer": answer, "concepts": matches, "videos": [v for c in matches for v in list_videos(c["id"])]}
