@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from storage import seed_concepts, list_videos
 from limits import enforce_chat_limit
+from exercises import list_exercises, get_exercise
 
 app = FastAPI(title="Musicaiman API", version="0.1.0")
 origins = [s.strip() for s in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if s.strip()]
@@ -79,3 +80,16 @@ async def chat(request: ChatRequest):
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
             pass
     return {"answer": answer, "concepts": matches, "videos": [v for c in matches for v in list_videos(c["id"])]}
+
+
+@app.get("/api/v1/exercises")
+def exercises():
+    return {"exercises": list_exercises()}
+
+
+@app.get("/api/v1/exercises/{exercise_id}")
+def exercise(exercise_id: str):
+    item = get_exercise(exercise_id)
+    if item is None:
+        raise HTTPException(404, "Exercise not found")
+    return item
