@@ -10,8 +10,10 @@ from storage import seed_concepts, list_videos
 from limits import enforce_chat_limit
 from exercises import list_exercises, get_exercise
 from evaluation import evaluate_eighth_notes
+from personal_api import router as personal_router
 
-app = FastAPI(title="Musicaiman API", version="0.1.0")
+app = FastAPI(title="Musicaiman API", version="0.2.0")
+app.include_router(personal_router)
 origins = [s.strip() for s in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if s.strip()]
 app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
 
