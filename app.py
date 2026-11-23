@@ -64,14 +64,14 @@ def concept(concept_id: str):
 @app.post("/api/v1/chat")
 async def chat(request: ChatRequest):
     matches = retrieve(request.message)
-    context = "\\n".join(f'{c["title"]}: {c["explanation"]}' for c in matches)
-    answer = "\\n".join(f'{c["title"]}: {c["explanation"]}' for c in matches) if matches else "Уточни, какой приём или рифф интересует. Например: palm mute, квинты или переменный штрих."
+    context = "\n".join(f'{c["title"]}: {c["explanation"]}' for c in matches)
+    answer = "\n".join(f'{c["title"]}: {c["explanation"]}' for c in matches) if matches else "Уточни, какой приём или рифф интересует. Например: palm mute, квинты или переменный штрих."
     base = os.getenv("LLM_BASE_URL", "").rstrip("/")
     model = os.getenv("LLM_MODEL", "")
     if base and model:
         try:
             async with httpx.AsyncClient(timeout=25) as client:
-                response = await client.post(base + "/chat/completions", headers={"Authorization": "Bearer " + os.getenv("LLM_API_KEY", "local")}, json={"model": model, "messages": [{"role": "system", "content": "Ты терпеливый преподаватель электрогитары. Отвечай на русском, коротко и с упражнениями. Используй учебный контекст, не выдумывай ссылки или результаты анализа аудио/видео. Контекст:\\n" + context}, *[m.model_dump() for m in request.history], {"role": "user", "content": request.message}], "temperature": 0.4, "max_tokens": 500})
+                response = await client.post(base + "/chat/completions", headers={"Authorization": "Bearer " + os.getenv("LLM_API_KEY", "local")}, json={"model": model, "messages": [{"role": "system", "content": "Ты терпеливый преподаватель электрогитары. Отвечай на русском, коротко и с упражнениями. Используй учебный контекст, не выдумывай ссылки или результаты анализа аудио/видео. Контекст:\n" + context}, *[m.model_dump() for m in request.history], {"role": "user", "content": request.message}], "temperature": 0.4, "max_tokens": 500})
                 response.raise_for_status()
                 answer = response.json()["choices"][0]["message"]["content"]
         except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
