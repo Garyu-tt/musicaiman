@@ -3,10 +3,11 @@ import re
 from typing import Literal
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from storage import seed_concepts, list_videos
+from limits import enforce_chat_limit
 
 app = FastAPI(title="Musicaiman API", version="0.1.0")
 origins = [s.strip() for s in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if s.strip()]
@@ -62,7 +63,7 @@ def concept(concept_id: str):
     return {**item, "videos": list_videos(concept_id)}
 
 
-@app.post("/api/v1/chat")
+@app.post("/api/v1/chat", dependencies=[Depends(enforce_chat_limit)])
 async def chat(request: ChatRequest):
     matches = retrieve(request.message)
     context = "\n".join(f'{c["title"]}: {c["explanation"]}' for c in matches)
